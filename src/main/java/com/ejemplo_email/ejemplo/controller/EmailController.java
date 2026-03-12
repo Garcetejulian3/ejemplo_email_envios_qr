@@ -25,14 +25,7 @@ public class EmailController {
     @Autowired
     private EmailService emailService;
 
-    @PostMapping("/send")
-    public String sendEmail(@RequestParam String to,
-                            @RequestParam String subject,
-                            @RequestParam String content){
-        emailService.sendEmail(to,subject,content);
-        return "Se envio correctamente el email con asunto" + subject + " a" + to;
-    }
-
+    // Enviar email con QR
     @PostMapping("/send/qr")
     public ResponseEntity<?> sendEmailQR(@RequestBody EmailRequest request){
 
@@ -45,23 +38,23 @@ public class EmailController {
             );
 
             Map<String, String> response = new HashMap<>();
-            response.put("mensaje", "Se envió correctamente el email a: " + request.getEmail());
+            response.put("mensaje", "Email enviado correctamente a " + request.getEmail());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
 
-            e.printStackTrace();
-
             Map<String, String> error = new HashMap<>();
-            error.put("error", e.getMessage());
+            error.put("error", "Error enviando email");
 
             return ResponseEntity.status(500).body(error);
         }
     }
 
+    // Generar QR directamente (para probar desde navegador)
     @GetMapping("/qr")
     public ResponseEntity<byte[]> generarQR(@RequestParam String codigo) throws IOException, WriterException {
+
         byte[] qr = qrService.generarQR(codigo);
 
         return ResponseEntity.ok()
@@ -69,11 +62,12 @@ public class EmailController {
                 .body(qr);
     }
 
-
+    // Endpoint para validar QR escaneado
     @PostMapping("/validar")
     public ResponseEntity<String> validarQR(@RequestBody Map<String,String> body){
+
         String codigo = body.get("codigo");
 
-        return ResponseEntity.ok("Codigo recibido: " + codigo);
+        return ResponseEntity.ok("Código recibido: " + codigo);
     }
 }

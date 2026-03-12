@@ -1,64 +1,67 @@
 package com.ejemplo_email.ejemplo.service;
 
-import com.google.zxing.WriterException;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Base64;
 
 @Service
 public class EmailService {
 
     @Autowired
-    private JavaMailSender emailSender;
-
-    @Autowired
     private QRService qrService;
 
-    public void sendEmail(String to,String subject,String content){
+    @Value("${RESEND_API_KEY}")
+    private String apiKey;
 
-        SimpleMailMessage message = new SimpleMailMessage();
+    public void sendEmailConQR(String to, String content, String codigo) {
 
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setText(content);
-        message.setFrom("garcetejulian3@gmail.com");
-        emailSender.send(message);
-    }
+        try {
 
-    public void sendEmailConQR(String to, String content, String codigo){
-
-        try{
             byte[] qrBytes = qrService.generarQR(codigo);
 
-            MimeMessage message = emailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+            String qrBase64 = Base64.getEncoder().encodeToString(qrBytes);
 
-            helper.setTo(to);
-            helper.setSubject("Prueba de Envios de QR");
-            helper.setFrom("garcetejulian3@gmail.com");
+            URL url = new URL("https://api.resend.com/emails");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
-            helper.setText("""
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+            conn.setRequestProperty("Content-Type", "application/json");
+
+            conn.setDoOutput(true);
+
+            String html = """
             <h2>Tu código QR</h2>
             <p>%s</p>
-            <img src='cid:qrImage'>
-            """.formatted(content), true);
+            <img src="data:image/png;base64,%s"/>
+            """.formatted(content, qrBase64);
 
-            helper.addInline("qrImage", new ByteArrayResource(qrBytes), "image/png");
+            String json = """
+            {
+              "from": "onboarding@resend.dev",
+              "to": ["%s"],
+              "subject": "Tu código QR",
+              "html": "%s"
+            }
+            """.formatted(to, html.replace("\"","\\\""));
 
-            emailSender.send(message);
+            try(OutputStream os = conn.getOutputStream()){
+                os.write(json.getBytes());
+            }
 
-        } catch (Exception e) {
+            int responseCode = conn.getResponseCode();
+
+            if(responseCode != 200){
+                throw new RuntimeException("Error enviando email");
+            }
+
+        } catch(Exception e){
             throw new RuntimeException("Error enviando email", e);
         }
     }
-
-
-
 }
