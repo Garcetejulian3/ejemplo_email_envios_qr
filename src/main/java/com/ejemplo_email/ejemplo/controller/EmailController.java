@@ -34,17 +34,30 @@ public class EmailController {
     }
 
     @PostMapping("/send/qr")
-    public ResponseEntity<Map<String, String>> sendEmailQR(@RequestBody EmailRequest request){
+    public ResponseEntity<?> sendEmailQR(@RequestBody EmailRequest request){
 
-        emailService.sendEmailConQR(
-                request.getEmail(),
-                request.getMensaje(),
-                request.getCodigo()
-        );
-        Map<String, String> response = new HashMap<>();
-        response.put("mensaje", "Se envió correctamente el email a: " + request.getEmail());
+        try {
 
-        return ResponseEntity.ok(response);
+            emailService.sendEmailConQR(
+                    request.getEmail(),
+                    request.getMensaje(),
+                    request.getCodigo()
+            );
+
+            Map<String, String> response = new HashMap<>();
+            response.put("mensaje", "Se envió correctamente el email a: " + request.getEmail());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+
+            return ResponseEntity.status(500).body(error);
+        }
     }
 
     @GetMapping("/qr")
